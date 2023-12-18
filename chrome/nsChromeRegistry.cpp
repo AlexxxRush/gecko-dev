@@ -30,10 +30,12 @@
 #include "mozilla/StyleSheetInlines.h"
 #include "mozilla/dom/Location.h"
 
-nsChromeRegistry* nsChromeRegistry::gChromeRegistry;
+// Глобальный объект для реестра chrome
+nsChromeRegistry* nsChromeRegistry::gChromeRegistry = nullptr;
 
-// DO NOT use namespace mozilla; it'll break due to a naming conflict between
-// mozilla::TextRange and a TextRange in OSX headers.
+// Пространство имен для явного указания использования
+// чтобы избежать конфликта имен с OSX-заголовками
+// mozilla::TextRange и TextRange из заголовков OSX.
 using mozilla::PresShell;
 using mozilla::StyleSheet;
 using mozilla::dom::Document;
@@ -42,48 +44,76 @@ using mozilla::dom::Location;
 ////////////////////////////////////////////////////////////////////////////////
 
 void nsChromeRegistry::LogMessage(const char* aMsg, ...) {
+  // Получение сервиса консоли
   nsCOMPtr<nsIConsoleService> console(
       do_GetService(NS_CONSOLESERVICE_CONTRACTID));
-  if (!console) return;
 
+  // Если сервис консоли недоступен, выход
+  if (!console) {
+    return;
+  }
+
+  // Форматирование строки
   va_list args;
   va_start(args, aMsg);
   mozilla::SmprintfPointer formatted = mozilla::Vsmprintf(aMsg, args);
   va_end(args);
-  if (!formatted) return;
 
+  // Если форматирование не удалось, выход
+  if (!formatted) {
+    return;
+  }
+
+  // Запись отформатированной строки в консоль
   console->LogStringMessage(NS_ConvertUTF8toUTF16(formatted.get()).get());
 }
 
 void nsChromeRegistry::LogMessageWithContext(nsIURI* aURL, uint32_t aLineNumber,
                                              uint32_t flags, const char* aMsg,
                                              ...) {
-  nsresult rv;
-
+  // Получение сервиса консоли
   nsCOMPtr<nsIConsoleService> console(
       do_GetService(NS_CONSOLESERVICE_CONTRACTID));
 
+  // Создание объекта ошибки скрипта
   nsCOMPtr<nsIScriptError> error(do_CreateInstance(NS_SCRIPTERROR_CONTRACTID));
-  if (!console || !error) return;
 
+  // Если сервис консоли или объект ошибки скрипта недоступны, выход
+  if (!console || !error) {
+    return;
+  }
+
+  // Форматирование строки
   va_list args;
   va_start(args, aMsg);
   mozilla::SmprintfPointer formatted = mozilla::Vsmprintf(aMsg, args);
   va_end(args);
-  if (!formatted) return;
+
+  // Если форматирование не удалось, выход
+  if (!formatted) {
+    return;
+  }
 
   nsCString spec;
-  if (aURL) aURL->GetSpec(spec);
+  if (aURL) {
+    aURL->GetSpec(spec);
+  }
 
-  rv = error->Init(NS_ConvertUTF8toUTF16(formatted.get()),
-                   NS_ConvertUTF8toUTF16(spec), u""_ns, aLineNumber, 0, flags,
-                   "chrome registration"_ns, false /* from private window */,
-                   true /* from chrome context */);
+  // Инициализация объекта ошибки скрипта
+  nsresult rv = error->Init(
+      NS_ConvertUTF8toUTF16(formatted.get()), NS_ConvertUTF8toUTF16(spec),
+      u""_ns, aLineNumber, 0, flags, "chrome registration"_ns,
+      false /* from private window */, true /* from chrome context */);
 
-  if (NS_FAILED(rv)) return;
+  // Если инициализация не удалась, выход
+  if (NS_FAILED(rv)) {
+    return;
+  }
 
+  // Запись ошибки в консоль
   console->LogMessage(error);
 }
+
 
 nsChromeRegistry::~nsChromeRegistry() { gChromeRegistry = nullptr; }
 
